@@ -122,12 +122,10 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
         }
 
         [Theory]
-        [InlineData("Content of validation message", null, "Content of validation message")]
         [InlineData("Content of validation message", "Some Content", "Some Content")]
-        [InlineData("\r\n  \r\n", "", "New HTML")]
-        [InlineData("\r\n  \r\n", "\r\n  \r\n", "New HTML")]
+        [InlineData("\r\n  \r\n", "\r\n Something Else \r\n", "\r\n Something Else \r\n")]
         [InlineData("\r\n  \r\n", "Some Content", "Some Content")]
-        public async Task ProcessAsync_MergesTagBuilderFromGenerateValidationMessage(
+        public async Task ProcessAsync_DoesntOverrideOutputContent(
             string childContent, string outputContent, string expectedOutputContent)
         {
             // Arrange
@@ -141,6 +139,58 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
             {
                 Content = outputContent
             };
+
+            var context = new TagHelperContext(allAttributes: new Dictionary<string, object>(),
+                                               uniqueId: "test",
+                                               getChildContentAsync: () => Task.FromResult(childContent));
+            var tagBuilder = new TagBuilder("span2")
+            {
+                InnerHtml = "New HTML"
+            };
+            tagBuilder.Attributes.Add("data-foo", "bar");
+            tagBuilder.Attributes.Add("data-hello", "world");
+
+            var generator = new Mock<IHtmlGenerator>(MockBehavior.Strict);
+            var setup = generator
+                .Setup(mock => mock.GenerateValidationMessage(
+                    It.IsAny<ViewContext>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<object>()))
+                .Returns(tagBuilder);
+            var viewContext = CreateViewContext();
+            validationMessageTagHelper.ViewContext = viewContext;
+            validationMessageTagHelper.Generator = generator.Object;
+
+            // Act
+            await validationMessageTagHelper.ProcessAsync(context, output: output);
+
+            // Assert
+            Assert.Equal("span", output.TagName);
+            Assert.Equal(2, output.Attributes.Count);
+            var attribute = Assert.Single(output.Attributes, kvp => kvp.Key.Equals("data-foo"));
+            Assert.Equal("bar", attribute.Value);
+            attribute = Assert.Single(output.Attributes, kvp => kvp.Key.Equals("data-hello"));
+            Assert.Equal("world", attribute.Value);
+            Assert.Equal(expectedOutputContent, output.Content);
+        }
+
+        [Theory]
+        [InlineData("Content of validation message", "Content of validation message")]
+        [InlineData("\r\n  \r\n", "New HTML")]
+        public async Task ProcessAsync_MergesTagBuilderFromGenerateValidationMessage(
+            string childContent, string expectedOutputContent)
+        {
+            // Arrange
+            var validationMessageTagHelper = new ValidationMessageTagHelper
+            {
+                For = CreateModelExpression("Hello")
+            };
+            var output = new TagHelperOutput(
+                "span",
+                attributes: new Dictionary<string, string>());
+
             var context = new TagHelperContext(allAttributes: new Dictionary<string, object>(),
                                                uniqueId: "test",
                                                getChildContentAsync: () => Task.FromResult(childContent));

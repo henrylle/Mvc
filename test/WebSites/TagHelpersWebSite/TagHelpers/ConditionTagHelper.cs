@@ -16,7 +16,7 @@ namespace TagHelpersWebSite.TagHelpers
             // If a condition is set and evaluates to false, don't render the tag.
             if (Condition.HasValue && !Condition.Value)
             {
-                output.SupressOutput();
+                output.SuppressOutput();
             }
         }
     }

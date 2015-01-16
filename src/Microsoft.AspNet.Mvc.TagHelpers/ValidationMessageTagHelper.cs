@@ -49,7 +49,7 @@ namespace Microsoft.AspNet.Mvc.TagHelpers
                     // We check for whitespace to detect scenarios such as:
                     // <span validation-for="Name">
                     // </span>
-                    if (string.IsNullOrEmpty(output.Content))
+                    if (!output.ContentSet)
                     {
                         var childContent = await context.GetChildContentAsync();
 
